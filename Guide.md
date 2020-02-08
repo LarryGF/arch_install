@@ -109,3 +109,78 @@ ls /sys/firmware/efi/efivars
 ```
 
 If the directory does not exists your system may have booted in `BIOS` mode, you should do some tweaking in your **BIOS** settings.
+
+#### 4. Connect to the internet or use a local repository
+
+For you to be able to install Arch you need an internet connection (roughly 800MB of data should be downloaded for a basic installation, and around 1-2GB if you want to use a Desktop environment). If you don't have internet access you can still install if you have a **local copy of the Arch repository** (how to do this is beyond the scope of this guide for now), this can be stored in your computer, an external hard drive or in another machine connected through your computer via LAN.
+
+##### Repository stored on an external hard drive or your computer
+
+These two approaches are very similar, first you search for the partition where your repository resides, you can use the `lsblk` command for this, and then you mount it to a folder, you can then mount that partition in a folder you create using these commands (let's assume it's located on `/dev/sdc1` and we'll create a folder called `repo` on the _root_ folder):
+
+```bash
+# Create the /repo folder
+mkdir /repo
+```
+
+```bash
+# Mount the partition in the /repo folder
+mount /dev/sdc1 /repo
+```
+
+##### Connecting to the internet or to another machine over LAN
+
+To know the status of your network interfaces you can use the `ip` command:
+
+```bash
+ip a
+```
+
+This should output something similar to this, it's highly likely that the ethernet and wireless interfaces have a different name on your computer, but they'll follow a similar naming convention:
+
+```
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: enp7s0f1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel state DOWN group default qlen 1000
+    link/ether 98:28:a6:0b:8f:f7 brd ff:ff:ff:ff:ff:ff
+3: wlp0s20f3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 94:b8:6d:c7:ab:5a brd ff:ff:ff:ff:ff:ff
+    inet 192.168.2.2/24 brd 192.168.43.255 scope global dynamic noprefixroute wlp0s20f3
+       valid_lft 2031sec preferred_lft 2031sec
+    inet6 fe80::d54a:d815:bed7:91bd/64 scope link noprefixroute
+       valid_lft forever preferred_lft forever
+```
+
+- lo: the loopback interface is a virtual interface that your computer uses to communicate with itself
+
+- enp7s0f1: the ethernet adapter
+
+- wlp0s20f3: the wireless adapter
+
+Let's assume you'll use the ethernet cable to connect to the internet or to your second computer with the repository. It's highly probable that if you're connecting to the internet your computer will use `DHCP` to automatically get an IP address (`dhcpd` is enabled by default in the installation media). In case your network doesn't have `DHCP` you can always set your ip address manually to match the configuration of your network:
+
+- If, as shown before, the status of your ethernet interface is: `state DOWN`, you can bring it up using:
+
+  ```bash
+  # change enp7s0f1 with your interface's name
+  ip link set enp7s0f1 up
+  ```
+
+- After that, you can change your ip/subnet using by typing:
+
+  ```bash
+  #change ip/subnet and interface to match your network
+  sudo ip a add 10.42.0.34/24 dev enp7s0f1
+  ```
+
+- You can check if you're connected to the internet by 'pinging' `google.com`:
+
+  ```bash
+  ping google.com
+  ```
+
+\*\* If you're going to connect 2 computers in LAN you have to make sure that they're both in the same subnet, subnetting is beyond the scope of this guide, but as a rule of thumb you can always set them with `{your prefix}`.`{any number from 1 to 254}`/24, so {your prefix} could be `10.42.0` and one machine could have the ip `10.42.0.1/24` and the other `10.42.0.2/24`. You can verify that they're connected if they can `ping` each other: `ping 10.42.0.1` from `10.42.0.2` and vice versa

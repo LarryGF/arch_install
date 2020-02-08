@@ -102,7 +102,9 @@ There are two types of firmware from which your computer can boot: `BIOS` and `U
 
 To check which boot mode your computer supports you can go to your **BIOS** settings (usually pressing `F2`,`F10` or `Del` keys during boot) and looking for the pertinent option. If it says `UEFI` you're good to go, some **BIOS** can have a `MBR`, `BIOS` or `Legacy` option that can either mean that they're booting in `BIOS` or that they're booting by default on `UEFI` but if they detect an `MBR/BIOS` setup they'll boot `BIOS` instead, this is up to your motherboard's manufacturer to be honest and you'll have to figure that out on your own.
 
-Once you have booted into your installation media (you can do this either by going to your **BIOS** settings and changing the boot order and giving your USB top priority or using the option that comes in most computers to select which media to boot from) you can check if your system has booted into `UEFI` mode by typing:
+Once you have booted into your installation media (you can do this either by going to your **BIOS** settings and changing the boot order and giving your USB top priority or using the option that comes in most computers to select which media to boot from) don't be scared, it will greet you with an empty prompt, and that will mean it worked. Arch don't come with an installer, in this case **you** are the installer, Arch will only provide you with the tool to install it on your system.
+
+Once you're in the shell, you can check if your system has booted into `UEFI` mode by typing:
 
 ```bash
 ls /sys/firmware/efi/efivars
@@ -184,3 +186,137 @@ Let's assume you'll use the ethernet cable to connect to the internet or to your
   ```
 
 \*\* If you're going to connect 2 computers in LAN you have to make sure that they're both in the same subnet, subnetting is beyond the scope of this guide, but as a rule of thumb you can always set them with `{your prefix}`.`{any number from 1 to 254}`/24, so {your prefix} could be `10.42.0` and one machine could have the ip `10.42.0.1/24` and the other `10.42.0.2/24`. You can verify that they're connected if they can `ping` each other: `ping 10.42.0.1` from `10.42.0.2` and vice versa
+
+#### 5. Partition and format the disks
+
+##### Partitioning
+
+When you're installing an Operating System, it seems that the installer is doing some magic and weird voodoo on your computer, but what's actually happening is that it's copying a bunch of files that contain the packages, tools and configurations neede for your system to run... it doesn't look very magical now, eh?
+
+With this in mind, it's clear that what we must guarantee in this step is that your files get written to your hard drive. In order to achieve this you must first create the necessary partitions, format them, and the mount them to your installation media's filesystem.
+
+This is not carved in stone, but this partition scheme works for me and I think it will work for you too, it keeps everything neat and separated. I'll keep the sizes of the partitions as percentages so it serves as a rule of thumb:
+
+```
+- EFI partition: 512MB
+- Root partition: 30%
+- Home partition: 65%
+- Swap partition: 5%
+```
+
+- EFI system partition: this is the file where your boot manager, kernel and initramfs will reside (more on this later), honestly, those files won't take more than 300MB, but those 200MB won't hurt anyone.
+
+- Root partition: this is where your system and all your installed packages will reside, it's advisable to give it at least 60GB so you can have some maneuverability and don't have to be uninstalling packages.
+
+- Home partition: this is where your users configuration will be, it's safer to have all your users data in a separate partition in case you have to reinstall you won't loose your configurations and data.
+
+- Swap partition: this partitions serves as a "backup RAM" in case your RAM runs out of space. This is not a magic solution that will automatically double your RAM or something like that, this is a failsafe in case your computer runs out of memory. Windows does something similar to this with a `pagination file` but you don't have much control over that. As a rule of thumb it should double your RAM size, but to be honest, with more than 8GB of RAM you'll rarely swap.
+
+Ok, now we'll begin with the actual partitioning process, to do that I'll use the `parted` package that comes preinstalled in the installation media. Be aware that if you intend to keep any data you should back it up at this point if you haven't already, because these steps **WILL ERASE ALL YOUR DATA**. Of course, if you already have a GPT partition table, and want to risk it it's okay too, but make a backup just in case.
+
+When you type `parted` on your shell it will automatically select a block device for you, sometimes, it doesn't select the drive you wanna install your system to, so you can do (assuming you wanna install to `/dev/sda`):
+
+```bash
+parted /dev/sda
+```
+
+and then `parted` will greet you and give you an interactive shell:
+
+```
+GNU Parted 3.3
+Using /dev/sda
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) _
+```
+
+You can use `print` to see your drive's information and partitions:
+
+```
+(parted) print
+Model: ATA ST1000LM048-2E71 (scsi)
+Disk /dev/sda: 1000GB
+Sector size (logical/physical): 512B/4096B
+Partition Table: gpt
+Disk Flags:
+
+Number  Start   End     Size    File system  Name                          Flags
+ 1      1049kB  952GB   952GB   ext4
+ 2      952GB   952GB   16.8MB               Microsoft reserved partition  msftres
+ 3      952GB   1000GB  48.3GB  ntfs         Basic data partition          msftdata
+```
+
+In the example you can see the disk already has a `Partition Table: gpt`, but assuming that you want to start from scratch (**THIS WILL DELETE EVERYTHING IN YOUR HARD DRIVE AND IT'S INCREDIBLY HARD TO RECOVER, SO WATCH OUT**) you must first execute:
+
+```bash
+(parted) mklabel gpt
+```
+
+This will erase everything and create a new `GPT` partition table. Now we need to actually create the partitions. The command to create partitions is `mkpart` and you use it:
+
+- part-type: is one of `primary`, `extended` or `logical`, and is meaningful only for MBR partition tables.
+- fs-type: is an identifier for the type of filesystem your partition will be using, it does not actually create the file system, the `fs-type` parameter will simply be used by `parted` to set a 1-byte code that is used by boot loaders to "preview" what kind of data is found in the partition.
+- start/end: where does the partition starts/ends on the device
+
+  ```bash
+  mkpart part-type fs-type start end
+  ```
+
+Assuming we're working on a 1TB hard drive the command sequence to obtain the desired partition scheme:
+
+- Create the EFI System Partition (ESP):
+
+  ```
+  mkpart primary fat32 1MiB 512MiB
+  ```
+
+  The ESP needs to be in `fat32` in order for your **BIOS** to recognize it, and we give it 512MB (roughly). After that we need to set the `esp` flag for the drive, this way the **BIOS** knows which partition to boot from, and we achieve it with this command (1 is the number of the `ESP` partition because it was the first to be created, if you created another partition check with `print` before you do it):
+
+  ```
+  set 1 esp on
+  ```
+
+- Create Root and Home partitions:
+
+```
+#root
+mkpart primary ext4 512MiB 30%
+```
+
+```
+#home
+mkpart primary ext4 30% 95%
+```
+
+- Create Swap partition:
+
+```
+mkpart primary linux-swap 95% 100%
+```
+
+And then exit `parted` by typing `quit` on the shell.
+
+##### Formatting
+
+All the partitions are created, now it's necessary to format them with the appropriate filesystem, and for that we'll be using the `mkfs` command (assuming you created the partitions in the same order as I did, and that your drive is `/dev/sda`):
+
+- ESP:
+  ```bash
+  mkfs.vfat -F 32 /dev/sda1
+  ```
+- Root and Home:
+  ```bash
+   mkfs.ext4 /dev/sda2
+  ```
+  ```bash
+  mkfs.ext4 /dev/sda3
+  ```
+- Swap:
+  ```bash
+  mkswap /dev/sda4
+  ```
+
+Just by formatting the swap partition is not enough, we have to tell the system to use it as swap, and we do it with the command:
+
+```bash
+swapon /dev/sda4
+```

@@ -90,6 +90,22 @@ After you have the image the next step would be to create a bootable media, ther
 
   - sync: when you're copying files the content of the files first get stored in RAM and then they get copied to persistent storage over time, running `sync` forces the synchronization of cache and persistent storage. This is really important because even when the `dd` process shows that it has finished, there might still be some lingering data that hasn't been copied to the USB.
 
+    ```bash
+    dd bs=4M if=~/Downloads/archlinux-2019.11.01-x86_64.iso of=/dev/sdb status=progress && sync
+    ```
+
+#### 3. Verify your computer's boot mode
+
+\*\* Something to clear out: when I write `BIOS` I'm referring to the BIOS firmware, and when I write **BIOS** I'm referring to your motherboard's Basic Input/Output System,
+
+There are two types of firmware from which your computer can boot: `BIOS` and `UEFI`, the later is more modern and has become the standard in almost every modern computer, so chances are very high that this is your computer's default boot mode. Depending on which one you are using your system will need an `MBR Partition Table` (for `BIOS`) or a `GPT Partition Table` (for `UEFI`). You can install Linux on a `UEFI` system with an `MBR Partition Table` but I can't think of a good reason as to why anyone would want to do that (this is not the case for Windows, since it forces you to use `MBR/BIOS` or `GPT/UEFI` so keep it in mind if you want a dual boot system). I will only cover the `UEFI` method in this guide since it's the more modern one and the one I believe everyone should be using, `MBR/BIOS` has given me too much bitter moments in the past...
+
+To check which boot mode your computer supports you can go to your **BIOS** settings (usually pressing `F2`,`F10` or `Del` keys during boot) and looking for the pertinent option. If it says `UEFI` you're good to go, some **BIOS** can have a `MBR`, `BIOS` or `Legacy` option that can either mean that they're booting in `BIOS` or that they're booting by default on `UEFI` but if they detect an `MBR/BIOS` setup they'll boot `BIOS` instead, this is up to your motherboard's manufacturer to be honest and you'll have to figure that out on your own.
+
+Once you have booted into your installation media (you can do this either by going to your **BIOS** settings and changing the boot order and giving your USB top priority or using the option that comes in most computers to select which media to boot from) you can check if your system has booted into `UEFI` mode by typing:
+
 ```bash
-dd bs=4M if=~/Downloads/archlinux-2019.11.01-x86_64.iso of=/dev/sdb status=progress && sync
+ls /sys/firmware/efi/efivars
 ```
+
+If the directory does not exists your system may have booted in `BIOS` mode, you should do some tweaking in your **BIOS** settings.

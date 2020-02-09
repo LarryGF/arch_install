@@ -176,7 +176,7 @@ Let's assume you'll use the ethernet cable to connect to the internet or to your
 
   ```bash
   #change ip/subnet and interface to match your network
-  sudo ip a add 10.42.0.34/24 dev enp7s0f1
+  ip a add 10.42.0.34/24 dev enp7s0f1
   ```
 
 - You can check if you're connected to the internet by 'pinging' `google.com`:
@@ -185,7 +185,19 @@ Let's assume you'll use the ethernet cable to connect to the internet or to your
   ping google.com
   ```
 
-\*\* If you're going to connect 2 computers in LAN you have to make sure that they're both in the same subnet, subnetting is beyond the scope of this guide, but as a rule of thumb you can always set them with `{your prefix}`.`{any number from 1 to 254}`/24, so {your prefix} could be `10.42.0` and one machine could have the ip `10.42.0.1/24` and the other `10.42.0.2/24`. You can verify that they're connected if they can `ping` each other: `ping 10.42.0.1` from `10.42.0.2` and vice versa
+\*\* If you're going to connect 2 computers in LAN you have to make sure that they're both in the same subnet, subnetting is beyond the scope of this guide, but as a rule of thumb you can always set them with `{your prefix}`.`{any number from 1 to 254}`/24, so {your prefix} could be `10.42.0` and one machine could have the ip `10.42.0.1/24` and the other `10.42.0.2/24`. You can verify that they're connected if they can `ping` each other: `ping 10.42.0.1` from `10.42.0.2` and vice versa.
+
+\*\* Once your computers are connected, if you want to have access to your repository you can serve it over `http`, a very easy to start an `http server` from the command line is to navigate to the folder where your repository resides and execute:
+
+```bash
+python -m http.server
+```
+
+This will start an http server listening over port 8000, if you want to use a different port, you can run it with the `-p` parameter:
+
+```bash
+python -m http.server -p 9000
+```
 
 #### 5. Partition and format the disks
 
@@ -204,13 +216,13 @@ This is not carved in stone, but this partition scheme works for me and I think 
 - Swap partition: 5%
 ```
 
-- EFI system partition: this is the file where your boot manager, kernel and initramfs will reside (more on this later), honestly, those files won't take more than 300MB, but those 200MB won't hurt anyone.
+- EFI system partition: this is the partition where your boot manager, kernel and initramfs will reside, honestly, those files won't take more than 300MB, but those 200MB won't hurt anyone.. It's the first partition loaded by your **BIOS** and it's in charge of starting your system (more on this later).
 
 - Root partition: this is where your system and all your installed packages will reside, it's advisable to give it at least 60GB so you can have some maneuverability and don't have to be uninstalling packages.
 
 - Home partition: this is where your users configuration will be, it's safer to have all your users data in a separate partition in case you have to reinstall you won't loose your configurations and data.
 
-- Swap partition: this partitions serves as a "backup RAM" in case your RAM runs out of space. This is not a magic solution that will automatically double your RAM or something like that, this is a failsafe in case your computer runs out of memory. Windows does something similar to this with a `pagination file` but you don't have much control over that. As a rule of thumb it should double your RAM size, but to be honest, with more than 8GB of RAM you'll rarely swap.
+- Swap partition: it's a part of your hard drive that is used for `virtual memory`, basically, this partitions serves as a "backup RAM" in case your RAM runs out of space. This is not a magic solution that will automatically double your RAM or something like that, this is a failsafe in case your computer runs out of memory. Windows does something similar to this with a `pagination file` but you don't have much control over that. As a rule of thumb it should double your RAM size, but to be honest, with more than 8GB of RAM you'll rarely swap.
 
 Ok, now we'll begin with the actual partitioning process, to do that I'll use the `parted` package that comes preinstalled in the installation media. Be aware that if you intend to keep any data you should back it up at this point if you haven't already, because these steps **WILL ERASE ALL YOUR DATA**. Of course, if you already have a GPT partition table, and want to risk it it's okay too, but make a backup just in case.
 
@@ -254,7 +266,7 @@ In the example you can see the disk already has a `Partition Table: gpt`, but as
 This will erase everything and create a new `GPT` partition table. Now we need to actually create the partitions. The command to create partitions is `mkpart` and you use it:
 
 - part-type: is one of `primary`, `extended` or `logical`, and is meaningful only for MBR partition tables.
-- fs-type: is an identifier for the type of filesystem your partition will be using, it does not actually create the file system, the `fs-type` parameter will simply be used by `parted` to set a 1-byte code that is used by boot loaders to "preview" what kind of data is found in the partition.
+- fs-type: is an identifier for the type of file system your partition will be using, it does not actually create the file system, the `fs-type` parameter will simply be used by `parted` to set a 1-byte code that is used by boot loaders to "preview" what kind of data is found in the partition.
 - start/end: where does the partition starts/ends on the device
 
   ```bash
@@ -319,4 +331,83 @@ Just by formatting the swap partition is not enough, we have to tell the system 
 
 ```bash
 swapon /dev/sda4
+```
+
+#### 6. Mount the file systems
+
+In previous sections I talked about file systems, and made you mount disks without giving much explanation, if you did all of that without doing some research of your own, thank you for your trust! Well, this is a good moment to give some background as to what file systems are and what happens when you mount a disk. Honestly, this section could have been literally 3 commands, but I think it's a wonderful opportunity to learn something new that could help you understand your system better.
+
+A filesystem is a hierarchy of directories that is used to organize files on a computer or storage media. On computers running Linux, the directories start with the root directory, which is the directory that contains all other directories and files on the system and which is designated by a forward slash (`/`). Mounting is the attaching of an additional filesystem to the currently accessible filesystem of a computer. When you mount a file system you need two things: a `storage device` and a `mount point`. The storage device can be a partition on a hard drive, a CD-ROM, a USB drive, or any other external media. The mount point is the directory (usually an empty one) in the currently accessible filesystem to which an additional filesystem is mounted. It becomes the root directory of the added directory tree, and that tree becomes accessible from the directory to which it is mounted, any original contents of a directory that is used as a mount point become invisible and inaccessible while the filesystem is still mounted.
+
+Let's say that you have a partition (`/dev/sdb3`) that contains the following folder structure:
+
+```
+root_of_your_device
+├─ foo_folder
+└─ bar_folder
+   └─ random_file
+```
+
+And you mount it to the `~/arch` folder that contains the following folder structure (`mount /dev/sdb3 ~/arch`):
+
+```
+arch
+├─is
+├─the
+└─best
+```
+
+When you check the contents of the `~/arch` folder it will be exactly what was in `/dev/sdb3`, the contents of the `~/arch` folder will be hidden because, to your system, the files and folders inside `/dev/sdb3` will effectively be the contents of the `~/arch` folder:
+
+```
+arch
+├─ foo_folder
+└─ bar_folder
+   └─ random_file
+```
+
+As I said before, the installer just creates the folder structure and copies everything your system needs to run into your system(`/`) partition, starting from the root directory. Let's think some more as to what you have to do to guarantee that everything gets copied correctly.
+
+Right now you're working on an Arch installation that's running on the filesystem of your USB drive. First you'll have to mount the file system of your `root` partition somewhere in your running Arch installation, in theory, this would be enough, when you start copying all of the needed files it will create the necessary folder structure and you'd be good to go... if you were using `BIOS/MBR` maybe this would have been enough, but using `UEFI` doing it this way will render your system unable to boot. Not to mention that having all your system files and user data in one partition makes it a single point of failure and as soon as something breaks, everything breaks. What to do then?
+
+- We were on the right track, you have to mount your `root` partition in a folder, for the sake of this guide, mount it to the `/mnt` folder:
+
+  ```bash
+  #since the previous step my root partition was /dev/sda2
+  mount /dev/sda2 /mnt
+  ```
+
+- Now, your user data and configs reside in `/home/{your user}`, if the system fails or you break something, you wouldn't wanna loose your data, then you'll have to create a `/home` folder in the root of your system partition and mount your `Home partition` in it (remember that your system partition is located in `/mnt`):
+
+  ```bash
+  #create the home folder in your system partition
+  mkdir /mnt/home
+  ```
+
+  ```bash
+  #since the previous step my home partition was /dev/sda3
+  mount /dev/sda3 /mnt/home
+  ```
+
+- If you noticed in the previous step, your bootloader, kernel and initramfs need to be located in the `EFI System Partition`, otherwise your system won't boot. During the installation process those files get written in the `/boot` folder, therefore, you'll have to create a `boot` folder in your root partition, mount your `ESP` partition there so when all the files are getting copied, they get copied to the `ESP` instead of your system partition:
+
+```bash
+  #create the boot folder in your system partition
+  mkdir /mnt/boot
+```
+
+```bash
+#since the previous step my ESP was /dev/sda1
+mount /dev/sda1 /mnt/boot
+```
+
+After you finish doing this when you run `lsblk` it should output something similar to this:
+
+```
+NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+sda    259:0    0 238.5G  0 disk
+├─sda1 259:1    0   511M  0 part /mnt/boot
+├─sda2 259:3    0   100G  0 part /mnt/
+├─sda3 259:4    0 134.5G  0 part /mnt/home
+└─sda4 259:2    0   3.5G  0 part [SWAP]
 ```

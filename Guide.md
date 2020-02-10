@@ -23,7 +23,7 @@ Honestly, the second one was always the obvious choice :man_shrugging:
 
 - Since I live in a country where internet access is very limited there will be some parts where I will propose some "workarounds" for those in the same situation as me, for the immense majority of you these won't be relevant, but hey!, just in case there's a zombie apocalypse and the only way to stop the annihilation of the human race is to install Arch without internet access.
 
-## Installation
+## Pre-Installation
 
 ### Preparing your environment
 
@@ -404,10 +404,64 @@ mount /dev/sda1 /mnt/boot
 After you finish doing this when you run `lsblk` it should output something similar to this:
 
 ```
-NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
 sda    259:0    0 238.5G  0 disk
 ├─sda1 259:1    0   511M  0 part /mnt/boot
 ├─sda2 259:3    0   100G  0 part /mnt/
 ├─sda3 259:4    0 134.5G  0 part /mnt/home
 └─sda4 259:2    0   3.5G  0 part [SWAP]
 ```
+
+## Installation
+
+Now that everything has been set up, it's time to start the installation process. Ironically, the actual installation of packages is the shortest and simplest part of the process, but there still are a couple interesting things that you should learn.
+
+1. Selecting the mirrors
+2. Installing the base packages
+
+#### 1. Selecting the mirrors
+
+All packages to be installed must be downloaded from mirror servers, a list of mirrors is located in `/etc/pacman.d/mirrorlist`. On the live system, all mirrors are enabled, and sorted by their synchronization status and speed at the time the installation image was created. The higher the mirror is on the list, the faster should be the download speed from it. This file will later be copied to your system so if you need to do some changes you should do them now.
+
+##### Editing /etc/pacman.d/mirrorlist
+
+Editing your `mirrorlist` can allow you to move a mirror closer to you to a higher priority so you can have lower latency, or if you have a local copy of the Arch repository this is where you'll tell your system to use it.
+
+Before going deeper into the structure of the `mirrorlist` file it would be good to know what's the structure of the actual repository. This is the folder tree for the repo:
+
+```
+arch
+├── community
+│   └── os
+│       └── x86_64
+├── core
+│   └── os
+│       └── x86_64
+├── extra
+│   └── os
+│       └── x86_64
+└── multilib
+    └── os
+        └── x86_64
+```
+
+My local copy of the Arch repository is stored in a folder named `arch`, the above tree is the result of executing `tree -d arch`. This is the same folder structure that the internet mirrors have. Now that you know how the repository is organized you'll be able to understand the structure of `/etc/pacman.d/mirrorlist` and to modify it at will.
+
+An entry of `/etc/pacman.d/mirrorlist` looks like this:
+
+```
+## Germany
+Server = http://artfiles.org/archlinux.org/$repo/os/$arch
+```
+
+Every entry is composed by:
+
+- A commented line indicating in which country the server is located, this doesn't make any difference at all, but if you're planning on adding new entries is a good practice to comment them to keep things organized.
+
+- All entries start with `Server = {your server}` this **must** be included in every entry.
+
+- The path to the repository, this can be a url, or the path to a folder in your computer, it's important to keep in mind that the protocol **must** match the way your system will access those files (more on this later)
+
+- As you saw before the Arch repository has several smaller repos (`community`, `core`, `extra` are the only ones your system will be using by default, there are others but they must be added manually later on). The `$repo` variable is making reference to those repositories, this means that if you're trying to download a package from the `core` repo and another from the `extra` repo, your system will know that it has to go fetch it from `http://artfiles.org/archlinux.org/core` and `http://artfiles.org/archlinux.org/extra` respectively.
+
+- The `$arch` variable refers to the architecture for your system (`i686` or `x86_64`), this is more of a legacy option in my opinion since [Arch dropped support for 32 bit systems a while ago](https://itsfoss.com/arch-linux-32-bit)

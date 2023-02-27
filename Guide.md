@@ -199,6 +199,8 @@ This will start an http server listening over port 8000, if you want to use a di
 python -m http.server -p 9000
 ```
 
+##### Connecting to the internet over WLAN
+
 #### 5. Partition and format the disks
 
 ##### Partitioning

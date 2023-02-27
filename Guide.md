@@ -201,6 +201,8 @@ python -m http.server -p 9000
 
 ##### Connecting to the internet over WLAN
 
+Using `iwctl`
+
 #### 5. Partition and format the disks
 
 ##### Partitioning

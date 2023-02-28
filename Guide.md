@@ -202,7 +202,7 @@ python -m http.server -p 9000
 
 ##### Connecting to the internet over WLAN
 
-Using `iwd`:
+Using `iwd`, which is a wireless daemon and is a standalone package that comes preinstalled in the installation media.
 
 #### 5. Partition and format the disks
 

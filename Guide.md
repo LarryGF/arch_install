@@ -1,3 +1,4 @@
+
 # The Arch Linux installation guide for the unlucky noob with limited connectivity
 
 First of all, let me begin by saying that, of all the distros that I've tried, Arch is my favorite one by far (and believe me, I've tried a lot: Debian, Ubuntu, Kubuntu, mostly every Manjaro flavour out there, Linux Mint...). It's highly customizable, it's bleeding-edge (meaning that you'll have access to the latest packages with little to no delay), it has a very granular installation process (it's almost af if you were building your OS with Lego blocks, you use small blocks and end up building whatever you need), an extremely efficient and functional package manager, and, what's probably my favorite feature (albeit not being an inherent feature of the distro): "The Arch Wiki", if you have a problem, chances are you're gonna find the solution in the wiki, or at least get a hint as to what you can do to solve it (bonus points for being available as a package too, but more on that in a while).
@@ -201,7 +202,7 @@ python -m http.server -p 9000
 
 ##### Connecting to the internet over WLAN
 
-Using `iwctl`:
+Using `iwd`:
 
 #### 5. Partition and format the disks
 
